@@ -1,8 +1,8 @@
-import { Request, Response, NextFunction } from 'express';
-import { PrometheusExpressOptions } from './prometheus-express-options';
-import { collectDefaultMetrics, Counter, Histogram, register } from 'prom-client';
-import { UrlDevaluer } from 'devalue-url';
 import debugLibrary from 'debug';
+import { UrlDevaluer } from 'devalue-url';
+import { NextFunction, Request, Response } from 'express';
+import { collectDefaultMetrics, Counter, Histogram, register } from 'prom-client';
+import { PrometheusExpressOptions } from './prometheus-express-options';
 
 const debug = debugLibrary('PROMEXPRESS');
 
@@ -113,7 +113,7 @@ export const promExpressMiddleware = (opts?: PrometheusExpressOptions) => {
         debug('starting prometheus default metric collection');
         collectDefaultMetrics(options.prometheusDefaultCollectorOptions);
     }
-    
+
     let counter: Counter = null;
     if (options.collectRequestCounts) {
         counter = new Counter({
@@ -131,14 +131,14 @@ export const promExpressMiddleware = (opts?: PrometheusExpressOptions) => {
             buckets: options.timingHistogramBuckets
         });
     }
-    
+
     // return the middleware
     return (req: Request, res: Response, next: NextFunction): void => {
         const route = routeDevaluer.devalueUrl(req.path);
         const method = req.method;
 
         debug(`received request: ${method} ${route}`);
-        
+
         if (options.collectRequestCounts) {
             debug('incrementing request');
             counter.labels(method, route).inc();
