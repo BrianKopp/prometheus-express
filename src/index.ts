@@ -1,7 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 import { PrometheusExpressOptions } from './prometheus-express-options';
-import { collectDefaultMetrics, Counter, Histogram } from 'prom-client';
+import { collectDefaultMetrics, Counter, Histogram, register } from 'prom-client';
 import { UrlDevaluer } from 'devalue-url';
+import debugLibrary from 'debug';
+
+const debug = debugLibrary('PROMEXPRESS');
 
 const defaultOptions: PrometheusExpressOptions = {
     exposeMetrics: true,
@@ -34,52 +37,80 @@ const groupStatusCode = (code: number): string => {
 };
 
 export const promExpressMiddleware = (opts?: PrometheusExpressOptions) => {
+    debug('setting up prometheus-express middleware');
     // configure middleware
     const options: PrometheusExpressOptions = defaultOptions;
     if (opts) {
-        if (!opts.exposeMetrics
-            && typeof opts.exposeMetrics !== 'undefined') {
+        debug('parsing passed options');
+        if (
+            !opts.exposeMetrics
+            && typeof opts.exposeMetrics !== 'undefined'
+        ) {
+            debug('disabling exposeMetrics');
             options.exposeMetrics = false;
         }
-        if (opts.metricsRoute
+        if (
+            opts.metricsRoute
             && typeof opts.metricsRoute === 'string'
-            && opts.metricsRoute.length) {
+            && opts.metricsRoute.length
+        ) {
+            debug('overwriting default metrics path from /metrics to ' + opts.metricsRoute);
             options.metricsRoute = opts.metricsRoute;
         }
-        if (!opts.collectDefaultPrometheusMetrics
-            && typeof opts.collectDefaultPrometheusMetrics !== 'undefined') {
+        if (
+            !opts.collectDefaultPrometheusMetrics
+            && typeof opts.collectDefaultPrometheusMetrics !== 'undefined'
+        ) {
+            debug('disabling collection of default prometheus metrics');
             options.collectDefaultPrometheusMetrics = false;
         }
-        if (!opts.collectRequestCounts
-            && typeof opts.collectRequestCounts !== 'undefined') {
+        if (
+            !opts.collectRequestCounts
+            && typeof opts.collectRequestCounts !== 'undefined'
+        ) {
+            debug('disabling collection of request counts');
             options.collectRequestCounts = false;
         }
-        if (opts.requestCounterMetricName
+        if (
+            opts.requestCounterMetricName
             && typeof opts.requestCounterMetricName === 'string'
-            && opts.requestCounterMetricName.length) {
+            && opts.requestCounterMetricName.length
+        ) {
+            debug('overwriting the request counter metric name to ' + opts.requestCounterMetricName);
             options.requestCounterMetricName = opts.requestCounterMetricName;
         }
-        if (!opts.collectRequestTimings
-            && typeof opts.collectRequestTimings !== 'undefined') {
+        if (
+            !opts.collectRequestTimings
+            && typeof opts.collectRequestTimings !== 'undefined'
+        ) {
+            debug('disabling collection of request response times');
             options.collectRequestTimings = false;
         }
-        if (opts.requestTimingMetricName
+        if (
+            opts.requestTimingMetricName
             && typeof opts.requestTimingMetricName === 'string'
-            && opts.requestTimingMetricName.length) {
+            && opts.requestTimingMetricName.length
+        ) {
+            debug('overwriting the response time metric name to ' + opts.requestCounterMetricName);
             options.requestTimingMetricName = opts.requestTimingMetricName;
         }
-        if (opts.timingHistogramBuckets
+        if (
+            opts.timingHistogramBuckets
             && Array.isArray(opts.timingHistogramBuckets)
-            && opts.timingHistogramBuckets.length) {
+            && opts.timingHistogramBuckets.length
+        ) {
+            debug('overwriting request timing histogram buckets to [' + opts.timingHistogramBuckets.join(', ') + ']');
             options.timingHistogramBuckets = opts.timingHistogramBuckets;
         }
         if (opts.prometheusDefaultCollectorOptions) {
+            debug('using passed prometheus default collector options');
             options.prometheusDefaultCollectorOptions = opts.prometheusDefaultCollectorOptions;
         }
     }
 
     const routeDevaluer = new UrlDevaluer();
     if (options.collectDefaultPrometheusMetrics) {
+        debug('starting prometheus default metric collection');
         collectDefaultMetrics(options.prometheusDefaultCollectorOptions);
     }
     
@@ -101,20 +132,18 @@ export const promExpressMiddleware = (opts?: PrometheusExpressOptions) => {
         });
     }
     
-    const collectRouteAndMethodInfo = options.collectRequestCounts || options.collectRequestTimings;
-
     // return the middleware
     return (req: Request, res: Response, next: NextFunction): void => {
-        let route: string = null;
-        let method: string = null;
-        if (collectRouteAndMethodInfo) {
-            route = routeDevaluer.devalueUrl(req.path);
-            method = req.method;
-        }
+        const route = routeDevaluer.devalueUrl(req.path);
+        const method = req.method;
 
+        debug(`received request: ${method} ${route}`);
+        
         if (options.collectRequestCounts) {
+            debug('incrementing request');
             counter.labels(method, route).inc();
         }
+
         if (options.collectRequestTimings) {
             const start = Date.now();
             res.on('finish', () => {
@@ -122,8 +151,19 @@ export const promExpressMiddleware = (opts?: PrometheusExpressOptions) => {
                 // give 1 decimal precision in milliseconds
                 const responseTime = Math.round(10.0 * (end - start)) / 10.0;
                 const groupedCode = groupStatusCode(res.statusCode);
+                debug(
+                    `recording ${method} ${route} request with status code
+                    ${res.statusCode} in status code group ${groupedCode}
+                    with time ${responseTime}`
+                );
                 timings.labels(method, route, groupedCode).observe(responseTime);
             });
+        }
+
+        if (options.exposeMetrics && route === options.metricsRoute) {
+            debug('metrics endpoint hit, returning prometheus metrics');
+            res.set('Content-Type', register.contentType).send(register.metrics());
+            return;
         }
     };
 };
