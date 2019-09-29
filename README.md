@@ -16,9 +16,21 @@ npm install --save prometheus-express
 Using with JavaScript:
 
 ```js
+const express = require('express');
+const promExpress = require('prometheus-express');
+const app = express();
+app.use(promExpress.middleware());
+
+// ... your code
 ```
 
 Using with TypeScrypt:
 
 ```ts
+import express from 'express';
+import promExpress from 'prometheus-express';
+const app = express();
+app.use(promExpress.middleware());
+
+// ... your code
 ```

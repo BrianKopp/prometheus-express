@@ -6,7 +6,7 @@ import { PrometheusExpressOptions } from './prometheus-express-options';
 
 const debug = debugLibrary('PROMEXPRESS');
 
-export const promExpressMiddleware = (opts?: PrometheusExpressOptions) => {
+export const middleware = (opts?: PrometheusExpressOptions): (req: Request, res: Response, next: NextFunction) => void => {
     debug('setting up prometheus-express middleware');
     // configure middleware
     const options: PrometheusExpressOptions = defaultOptions;
