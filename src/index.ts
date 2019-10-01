@@ -6,10 +6,15 @@ import { PrometheusExpressOptions } from './prometheus-express-options';
 
 const debug = debugLibrary('PROMEXPRESS');
 
+/**
+ * Sets up middleware for an express app which can report prometheus
+ * metrics, request counts, and response times.
+ * @param opts 
+ */
 export const middleware = (opts?: PrometheusExpressOptions): (req: Request, res: Response, next: NextFunction) => void => {
     debug('setting up prometheus-express middleware');
     // configure middleware
-    const options: PrometheusExpressOptions = defaultOptions;
+    const options = parseOptions(opts);
 
     const routeDevaluer = new UrlDevaluer();
     if (options.collectDefaultPrometheusMetrics) {
@@ -86,6 +91,11 @@ const defaultOptions: PrometheusExpressOptions = {
     prometheusDefaultCollectorOptions: null
 };
 
+/**
+ * Splits out the logic for parsing options
+ * @param opts 
+ * @returns nice and tidy options
+ */
 const parseOptions = (opts: PrometheusExpressOptions): PrometheusExpressOptions => {
     const options = defaultOptions;
     if (opts) {
@@ -159,6 +169,11 @@ const parseOptions = (opts: PrometheusExpressOptions): PrometheusExpressOptions 
     return options;
 };
 
+/**
+ * Groups status codes together into 1XX, 2XX, 3XX, 4XX, 5XX, and ERR categories
+ * @param code {number}
+ * @returns {string}
+ */
 const groupStatusCode = (code: number): string => {
     if (code < 100) {
         return 'ERR';
