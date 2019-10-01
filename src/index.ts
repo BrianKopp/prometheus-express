@@ -9,9 +9,13 @@ const debug = debugLibrary('PROMEXPRESS');
 /**
  * Sets up middleware for an express app which can report prometheus
  * metrics, request counts, and response times.
- * @param opts 
+ * @param opts
  */
-export const middleware = (opts?: PrometheusExpressOptions): (req: Request, res: Response, next: NextFunction) => void => {
+export const middleware = (
+    opts?: PrometheusExpressOptions
+): (
+    req: Request, res: Response, next: NextFunction
+) => void => {
     debug('setting up prometheus-express middleware');
     // configure middleware
     const options = parseOptions(opts);
@@ -93,7 +97,7 @@ const defaultOptions: PrometheusExpressOptions = {
 
 /**
  * Splits out the logic for parsing options
- * @param opts 
+ * @param opts
  * @returns nice and tidy options
  */
 const parseOptions = (opts: PrometheusExpressOptions): PrometheusExpressOptions => {
