@@ -29,7 +29,7 @@ export interface PrometheusExpressOptions {
  * metrics, request counts, and response times.
  * @param opts
  */
-export const middleware = (opts: PrometheusExpressOptions): (
+export const middleware = (opts?: PrometheusExpressOptions): (
     req: Request, res: Response, next: NextFunction
 ) => void => {
     debug('setting up prometheus-express middleware');
