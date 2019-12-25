@@ -29,7 +29,7 @@ export interface PrometheusExpressOptions {
  * metrics, request counts, and response times.
  * @param opts
  */
-export const middleware = (opts?: PrometheusExpressOptions): (
+export const instrumentExpress = (opts?: PrometheusExpressOptions): (
     req: Request, res: Response, next: NextFunction
 ) => void => {
     debug('setting up prometheus-express middleware');
@@ -95,6 +95,26 @@ export const middleware = (opts?: PrometheusExpressOptions): (
         }
 
         // pass along to next middleware/app
+        next();
+    };
+};
+
+/**
+ * Sets up middleware to expose metrics on an express app.
+ * Useful in conjunction with instrumentExpress when you want
+ * metrics exposed on a separate port.
+ * @param path path to expose metrics on, should start with '/'
+ */
+export const exposeMetrics = (path?: string): (
+    req: Request, res: Response, next: NextFunction
+) => void => {
+    const metricsPath = path || '/metrics';
+    return (req: Request, res: Response, next: NextFunction): void => {
+        if (req.path === metricsPath) {
+            debug('metrics endpoint hit, returning prometheus metrics');
+            res.set('Content-Type', register.contentType).send(register.metrics());
+            return;
+        }
         next();
     };
 };
