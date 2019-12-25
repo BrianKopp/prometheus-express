@@ -1,26 +1,42 @@
 import debugLibrary from 'debug';
-import { UrlDevaluer } from 'devalue-url';
+import { UrlDevaluer, UrlDevaluerOptions } from 'devalue-url';
 import { NextFunction, Request, Response } from 'express';
-import { collectDefaultMetrics, Counter, Histogram, register } from 'prom-client';
-import { PrometheusExpressOptions } from './prometheus-express-options';
+import {
+    collectDefaultMetrics,
+    Counter,
+    DefaultMetricsCollectorConfiguration,
+    Histogram,
+    register
+} from 'prom-client';
 
 const debug = debugLibrary('PROMEXPRESS');
+
+export interface PrometheusExpressOptions {
+    exposeMetrics?: boolean;
+    metricsRoute?: string;
+    collectDefaultPrometheusMetrics?: boolean;
+    collectRequestCounts?: boolean;
+    requestCounterMetricName?: string;
+    collectRequestTimings?: boolean;
+    requestTimingMetricName?: string;
+    timingHistogramBuckets?: number[];
+    prometheusDefaultCollectorOptions?: DefaultMetricsCollectorConfiguration;
+    urlDevaluerOptions?: UrlDevaluerOptions;
+}
 
 /**
  * Sets up middleware for an express app which can report prometheus
  * metrics, request counts, and response times.
  * @param opts
  */
-export const middleware = (
-    opts?: PrometheusExpressOptions
-): (
+export const middleware = (opts?: PrometheusExpressOptions): (
     req: Request, res: Response, next: NextFunction
 ) => void => {
     debug('setting up prometheus-express middleware');
     // configure middleware
     const options = parseOptions(opts);
 
-    const routeDevaluer = new UrlDevaluer();
+    const routeDevaluer = new UrlDevaluer(opts.urlDevaluerOptions);
     if (options.collectDefaultPrometheusMetrics) {
         debug('starting prometheus default metric collection');
         collectDefaultMetrics(options.prometheusDefaultCollectorOptions);
